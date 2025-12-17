@@ -71,8 +71,8 @@ Upload → Extract Text → Chunk → Generate Embeddings → Store in ChromaDB
 
 ```bash
 # Clone the repository
-git clone https://github.com/Salman-Naif/vectorDatabase_Public.git
-cd vectorDatabase_Public
+git clone https://github.com/Salman-Naif/chromadb-server-public.git
+cd chromadb-server-public
 
 # Create virtual environment
 python -m venv venv
@@ -345,7 +345,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **SALMAN NAIF ALMUHAYSIN** - [ Find me on X : @Snma7_ ](https://x.com/snma7_?s=21) 
 - Or Mail me on : Snma2003@outlook.sa
 
-Project Link: [https://github.com/Salman-Naif/vectorDatabase_Public.git]
+Project Link: [https://github.com/Salman-Naif/chromadb-server-public.git]
 ---
 
 <div align="center">

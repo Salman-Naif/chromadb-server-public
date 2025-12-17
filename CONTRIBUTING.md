@@ -47,8 +47,8 @@ Feature suggestions are welcome! Please:
 
 ```bash
 # Clone your fork
-git clone https://github.com/Salman-Naif/vectorDatabase_Public.git
-cd vectorDatabase_Public
+git clone https://github.com/Salman-Naif/chromadb-server-public.git
+cd chromadb-server-public
 
 # Create virtual environment
 python -m venv venv
