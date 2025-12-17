@@ -1,0 +1,36 @@
+# ============================================
+# Render.com Deployment Configuration
+# ============================================
+# Deploy to Render: https://render.com/deploy
+
+services:
+  - type: web
+    name: chromadb-knowledge-server
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 300 --workers 1 --max-requests 50 --max-requests-jitter 10
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: OPENROUTER_API_KEY
+        sync: false  # Set this manually in Render dashboard
+      - key: CHROMADB_PATH
+        value: ./data/chromadb
+      - key: CHROMADB_COLLECTION
+        value: knowledge_base
+      - key: EMBEDDING_MODEL
+        value: qwen/qwen3-embedding-8b
+      - key: EMBEDDING_DIMENSION
+        value: "4096"
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_EMAIL
+        value: admin@example.com
+      - key: ADMIN_PASSWORD
+        sync: false  # Set this manually in Render dashboard
+      - key: FLASK_ENV
+        value: production
+    disk:
+      name: chromadb-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1

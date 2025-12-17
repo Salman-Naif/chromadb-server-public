@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+
+{% block title %}صحة الخادم{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-heartbeat"></i>
+            صحة الخادم
+        </h1>
+        <p class="page-subtitle">مقاييس الأداء والصحة للنظام</p>
+    </div>
+    <button class="btn btn-secondary" onclick="refreshHealth()">
+        <i class="fas fa-sync-alt"></i>
+        تحديث
+    </button>
+</div>
+
+<!-- System Metrics -->
+<div class="stats-grid fade-in">
+    <div class="stat-card">
+        <div class="stat-icon {{ 'success' if health.system.cpu < 70 else 'warning' if health.system.cpu < 85 else 'error' }}">
+            <i class="fas fa-microchip"></i>
+        </div>
+        <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span class="stat-label">المعالج (CPU)</span>
+                <span class="stat-value-sm">{{ health.system.cpu }}%</span>
+            </div>
+            <div class="progress-mini">
+                <div class="progress-mini-fill {{ 'success' if health.system.cpu < 70 else 'warning' if health.system.cpu < 85 else 'error' }}" 
+                     style="width: {{ health.system.cpu }}%"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon {{ 'success' if health.system.ram < 70 else 'warning' if health.system.ram < 85 else 'error' }}">
+            <i class="fas fa-memory"></i>
+        </div>
+        <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span class="stat-label">الذاكرة (RAM)</span>
+                <span class="stat-value-sm">{{ health.system.ram }}%</span>
+            </div>
+            <div class="progress-mini">
+                <div class="progress-mini-fill {{ 'success' if health.system.ram < 70 else 'warning' if health.system.ram < 85 else 'error' }}" 
+                     style="width: {{ health.system.ram }}%"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon {{ 'success' if health.system.disk < 70 else 'warning' if health.system.disk < 85 else 'error' }}">
+            <i class="fas fa-hdd"></i>
+        </div>
+        <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span class="stat-label">التخزين</span>
+                <span class="stat-value-sm">{{ health.system.disk }}%</span>
+            </div>
+            <div class="progress-mini">
+                <div class="progress-mini-fill {{ 'success' if health.system.disk < 70 else 'warning' if health.system.disk < 85 else 'error' }}" 
+                     style="width: {{ health.system.disk }}%"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon info">
+            <i class="fas fa-network-wired"></i>
+        </div>
+        <div style="flex: 1;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span class="stat-label">زمن الاستجابة</span>
+                <span class="stat-value-sm">{{ health.system.latency }} ms</span>
+            </div>
+            <div class="progress-mini">
+                <div class="progress-mini-fill info" style="width: {{ [health.system.latency / 5, 100]|min }}%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+    <!-- Database Health -->
+    <div class="card fade-in">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-database"></i>
+                صحة قاعدة البيانات
+            </h3>
+        </div>
+        
+        <div class="health-metrics">
+            <div class="metric-item">
+                <div class="metric-icon success">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <div>
+                    <div class="metric-value">{{ health.database.collections }}</div>
+                    <div class="metric-label">المجموعات</div>
+                </div>
+            </div>
+            
+            <div class="metric-item">
+                <div class="metric-icon info">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div>
+                    <div class="metric-value">{{ health.database.avg_query_time }} ms</div>
+                    <div class="metric-label">متوسط وقت الاستعلام</div>
+                </div>
+            </div>
+            
+            <div class="metric-item">
+                <div class="metric-icon {{ 'success' if health.database.failed_queries == 0 else 'error' }}">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div>
+                    <div class="metric-value">{{ health.database.failed_queries }}</div>
+                    <div class="metric-label">استعلامات فاشلة (24 ساعة)</div>
+                </div>
+            </div>
+            
+            <div class="metric-item">
+                <div class="metric-icon success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div>
+                    <div class="metric-value">{{ health.database.index_status }}</div>
+                    <div class="metric-label">حالة الفهرس</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- API Health -->
+    <div class="card fade-in">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-plug"></i>
+                صحة الـ API
+            </h3>
+            <a href="/api/diagnose" target="_blank" class="btn btn-sm btn-secondary">
+                <i class="fas fa-stethoscope"></i>
+                تشخيص كامل
+            </a>
+        </div>
+        
+        <div class="health-metrics">
+            <div class="metric-item">
+                <div class="metric-icon {{ 'success' if health.api.status == 'healthy' else 'error' }}">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <div>
+                    <div class="metric-value">{{ health.api.status }}</div>
+                    <div class="metric-label">Embeddings API</div>
+                </div>
+            </div>
+            
+            <div class="metric-item">
+                <div class="metric-icon info">
+                    <i class="fas fa-stopwatch"></i>
+                </div>
+                <div>
+                    <div class="metric-value">{{ health.api.response_time }} ms</div>
+                    <div class="metric-label">وقت الاستجابة</div>
+                </div>
+            </div>
+            
+            <div class="metric-item">
+                <div class="metric-icon {{ 'success' if health.api.failed_calls == 0 else 'warning' }}">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div>
+                    <div class="metric-value">{{ health.api.failed_calls }}</div>
+                    <div class="metric-label">استدعاءات فاشلة (24 ساعة)</div>
+                </div>
+            </div>
+            
+            <div class="metric-item">
+                <div class="metric-icon info">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
+                <div>
+                    <div class="metric-value">{{ health.api.rate_limit_status }}</div>
+                    <div class="metric-label">حالة Rate Limit</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+            <small style="color: var(--text-secondary);">
+                <i class="fas fa-info-circle"></i>
+                Model: {{ health.api.model }}
+            </small>
+        </div>
+        
+        {% if health.api.error %}
+        <div class="alert alert-error" style="margin-top: 15px;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+                <strong>خطأ في API</strong>
+                <p>{{ health.api.error }}</p>
+                {% if health.api.error_code == 402 %}
+                <a href="https://openrouter.ai/credits" target="_blank" class="btn btn-sm btn-primary" style="margin-top: 10px;">
+                    <i class="fas fa-credit-card"></i>
+                    إضافة رصيد
+                </a>
+                {% elif health.api.error_code == 401 %}
+                <a href="https://openrouter.ai/keys" target="_blank" class="btn btn-sm btn-primary" style="margin-top: 10px;">
+                    <i class="fas fa-key"></i>
+                    إنشاء مفتاح جديد
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Alerts -->
+{% if health.alerts %}
+<div class="card fade-in" style="margin-top: 20px;">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-bell"></i>
+            التنبيهات
+        </h3>
+    </div>
+    
+    <div class="alerts-list">
+        {% for alert in health.alerts %}
+        <div class="alert alert-{{ alert.type }}">
+            <i class="fas fa-{{ 'exclamation-triangle' if alert.type == 'warning' else 'times-circle' if alert.type == 'error' else 'info-circle' }}"></i>
+            <div>
+                <strong>{{ alert.title }}</strong>
+                <p>{{ alert.message }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Error Logs -->
+<div class="card fade-in" style="margin-top: 20px;">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-bug"></i>
+            سجل الأخطاء (آخر 24 ساعة)
+        </h3>
+    </div>
+    
+    {% if errors %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>النوع</th>
+                    <th>الرسالة</th>
+                    <th>Endpoint</th>
+                    <th>التاريخ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for error in errors %}
+                <tr>
+                    <td>
+                        <span class="badge badge-error">{{ error.error_type }}</span>
+                    </td>
+                    <td>{{ error.error_message[:60] }}{% if error.error_message|length > 60 %}...{% endif %}</td>
+                    <td><code>{{ error.endpoint or '-' }}</code></td>
+                    <td>{{ error.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+        <i class="fas fa-check-circle" style="font-size: 3em; margin-bottom: 15px; color: var(--success-color);"></i>
+        <p>لا توجد أخطاء في آخر 24 ساعة 🎉</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .progress-mini {
+        height: 8px;
+        background: var(--border-color);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .progress-mini-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    
+    .progress-mini-fill.success {
+        background: linear-gradient(90deg, #22c55e, #16a34a);
+    }
+    
+    .progress-mini-fill.warning {
+        background: linear-gradient(90deg, #f59e0b, #d97706);
+    }
+    
+    .progress-mini-fill.error {
+        background: linear-gradient(90deg, #ef4444, #dc2626);
+    }
+    
+    .progress-mini-fill.info {
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
+    }
+    
+    .stat-value-sm {
+        font-size: 1.1em;
+        font-weight: 700;
+    }
+    
+    .health-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .metric-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+    }
+    
+    .metric-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .metric-icon.success {
+        background: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+    }
+    
+    .metric-icon.warning {
+        background: rgba(245, 158, 11, 0.2);
+        color: #f59e0b;
+    }
+    
+    .metric-icon.error {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+    
+    .metric-icon.info {
+        background: rgba(59, 130, 246, 0.2);
+        color: #3b82f6;
+    }
+    
+    .metric-value {
+        font-size: 1.2em;
+        font-weight: 700;
+    }
+    
+    .metric-label {
+        font-size: 0.85em;
+        color: var(--text-secondary);
+    }
+    
+    .alerts-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .alerts-list .alert {
+        margin: 0;
+    }
+    
+    .alerts-list .alert div {
+        flex: 1;
+    }
+    
+    .alerts-list .alert p {
+        margin: 5px 0 0;
+        font-size: 0.9em;
+        opacity: 0.9;
+    }
+    
+    .alert {
+        display: flex;
+        align-items: flex-start;
+        gap: 15px;
+        padding: 15px 20px;
+        border-radius: 10px;
+    }
+    
+    .alert-warning {
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        color: #f59e0b;
+    }
+    
+    .alert-error {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+    }
+    
+    code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+    
+    @media (max-width: 768px) {
+        .health-metrics {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function refreshHealth() {
+        location.reload();
+    }
+</script>
+{% endblock %}

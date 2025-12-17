@@ -1,0 +1,617 @@
+{% extends "base.html" %}
+
+{% block title %}إدارة الملفات{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-folder-open"></i>
+            إدارة الملفات
+        </h1>
+        <p class="page-subtitle">عرض وإدارة الملفات المرفوعة في قاعدة المعرفة</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <a href="{{ url_for('upload') }}" class="btn btn-primary">
+            <i class="fas fa-upload"></i>
+            رفع ملف
+        </a>
+        {% if current_user.role in ['admin', 'system_manager'] %}
+        <button class="btn btn-secondary" onclick="exportFiles()">
+            <i class="fas fa-download"></i>
+            تصدير
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Search and Filter -->
+<div class="card fade-in">
+    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 250px;">
+            <div class="input-with-icon">
+                <i class="fas fa-search"></i>
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="form-control" 
+                    placeholder="البحث في الملفات..."
+                    onkeyup="filterFiles()"
+                >
+            </div>
+        </div>
+        <div>
+            <select id="typeFilter" class="form-control" onchange="filterFiles()">
+                <option value="">جميع الأنواع</option>
+                <option value="pdf">PDF</option>
+                <option value="docx">Word</option>
+                <option value="txt">نص</option>
+            </select>
+        </div>
+        <div>
+            <select id="langFilter" class="form-control" onchange="filterFiles()">
+                <option value="">جميع اللغات</option>
+                <option value="ar">عربي</option>
+                <option value="en">إنجليزي</option>
+                <option value="mixed">مختلط</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Files Table -->
+<div class="card fade-in">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-list"></i>
+            الملفات (<span id="filesCount">{{ files|length }}</span>)
+        </h3>
+    </div>
+    
+    {% if files %}
+    <div class="table-container">
+        <table id="filesTable">
+            <thead>
+                <tr>
+                    <th style="width: 30px;">
+                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                    </th>
+                    <th>اسم الملف</th>
+                    <th>النوع</th>
+                    <th>القطع</th>
+                    <th>اللغة</th>
+                    <th>تاريخ الرفع</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                <tr data-file-id="{{ file.file_id }}" 
+                    data-filename="{{ file.filename|lower }}"
+                    data-type="{{ file.filename.split('.')[-1]|lower if '.' in file.filename else 'unknown' }}"
+                    data-lang="{{ file.lang }}">
+                    <td>
+                        <input type="checkbox" class="file-checkbox" value="{{ file.file_id }}">
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="file-icon {{ file.filename.split('.')[-1]|lower if '.' in file.filename else 'txt' }}">
+                                <i class="fas fa-file-{{ 'pdf' if file.filename.endswith('.pdf') else 'word' if file.filename.endswith('.docx') else 'alt' }}"></i>
+                            </div>
+                            <div>
+                                <div class="file-name-cell" title="{{ file.filename }}">
+                                    {{ file.filename[:40] }}{% if file.filename|length > 40 %}...{% endif %}
+                                </div>
+                                <div class="file-id">{{ file.file_id[:8] }}...</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ 'error' if file.filename.endswith('.pdf') else 'info' if file.filename.endswith('.docx') else 'warning' }}">
+                            {{ file.filename.split('.')[-1]|upper if '.' in file.filename else 'TXT' }}
+                        </span>
+                    </td>
+                    <td>{{ file.chunks_count }}</td>
+                    <td>
+                        <span class="badge badge-{{ 'success' if file.lang == 'ar' else 'info' if file.lang == 'en' else 'warning' }}">
+                            {{ 'عربي' if file.lang == 'ar' else 'إنجليزي' if file.lang == 'en' else 'مختلط' }}
+                        </span>
+                    </td>
+                    <td>{{ file.upload_date[:10] if file.upload_date else '-' }}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-secondary" onclick="previewFile('{{ file.file_id }}')" title="معاينة">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            {% if current_user.role in ['admin', 'system_manager'] %}
+                            <button class="btn btn-sm btn-danger" onclick="deleteFile('{{ file.file_id }}', '{{ file.filename }}')" title="حذف">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if current_user.role in ['admin', 'system_manager'] %}
+    <div class="bulk-actions" id="bulkActions" style="display: none;">
+        <span id="selectedCount">0</span> ملفات محددة
+        <button class="btn btn-danger btn-sm" onclick="deleteSelected()">
+            <i class="fas fa-trash"></i>
+            حذف المحدد
+        </button>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-folder-open"></i>
+        <h3>لا توجد ملفات</h3>
+        <p>لم يتم رفع أي ملفات بعد. ابدأ برفع أول ملف!</p>
+        <a href="{{ url_for('upload') }}" class="btn btn-primary">
+            <i class="fas fa-upload"></i>
+            رفع ملف
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Preview Modal -->
+<div class="modal" id="previewModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="previewTitle">معاينة الملف</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="previewBody">
+            <div class="spinner"></div>
+            <p>جاري التحميل...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal" id="deleteModal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>تأكيد الحذف</h3>
+            <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>هل أنت متأكد من حذف الملف:</p>
+            <p><strong id="deleteFileName"></strong></p>
+            <p style="color: var(--error-color); font-size: 0.9em;">⚠️ هذا الإجراء لا يمكن التراجع عنه</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeDeleteModal()">إلغاء</button>
+            <button class="btn btn-danger" id="confirmDeleteBtn">
+                <i class="fas fa-trash"></i>
+                حذف
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .input-with-icon {
+        position: relative;
+    }
+    
+    .input-with-icon i {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-secondary);
+    }
+    
+    .input-with-icon input {
+        padding-right: 45px;
+    }
+    
+    .file-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1em;
+    }
+    
+    .file-icon.pdf {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+    
+    .file-icon.docx, .file-icon.doc {
+        background: rgba(59, 130, 246, 0.2);
+        color: #3b82f6;
+    }
+    
+    .file-icon.txt {
+        background: rgba(245, 158, 11, 0.2);
+        color: #f59e0b;
+    }
+    
+    .file-name-cell {
+        font-weight: 500;
+    }
+    
+    .file-id {
+        font-size: 0.8em;
+        color: var(--text-secondary);
+        font-family: monospace;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .bulk-actions {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 10px;
+        margin-top: 15px;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-secondary);
+    }
+    
+    .empty-state i {
+        font-size: 4em;
+        margin-bottom: 20px;
+        opacity: 0.3;
+    }
+    
+    .empty-state h3 {
+        margin-bottom: 10px;
+        color: var(--text-primary);
+    }
+    
+    .empty-state p {
+        margin-bottom: 20px;
+    }
+    
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    
+    .modal.active {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: var(--card-bg);
+        border-radius: 15px;
+        width: 100%;
+        max-width: 700px;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        animation: modalSlideIn 0.3s ease;
+    }
+    
+    .modal-sm {
+        max-width: 400px;
+    }
+    
+    @keyframes modalSlideIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5em;
+        color: var(--text-secondary);
+        cursor: pointer;
+    }
+    
+    .modal-close:hover {
+        color: var(--text-primary);
+    }
+    
+    .modal-body {
+        padding: 20px;
+        overflow-y: auto;
+        flex: 1;
+    }
+    
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 20px;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .preview-chunk {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .preview-chunk-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-size: 0.85em;
+        color: var(--text-secondary);
+    }
+    
+    .preview-chunk-text {
+        white-space: pre-wrap;
+        font-size: 0.9em;
+        line-height: 1.6;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const API_KEY = '{{ config.CHROMADB_API_KEY }}';
+    
+    function filterFiles() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const typeFilter = document.getElementById('typeFilter').value;
+        const langFilter = document.getElementById('langFilter').value;
+        
+        const rows = document.querySelectorAll('#filesTable tbody tr');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const filename = row.dataset.filename;
+            const type = row.dataset.type;
+            const lang = row.dataset.lang;
+            
+            const matchSearch = filename.includes(search);
+            const matchType = !typeFilter || type === typeFilter;
+            const matchLang = !langFilter || lang === langFilter;
+            
+            if (matchSearch && matchType && matchLang) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('filesCount').textContent = visibleCount;
+    }
+    
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.file-checkbox');
+        
+        checkboxes.forEach(cb => {
+            cb.checked = selectAll.checked;
+        });
+        
+        updateBulkActions();
+    }
+    
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('file-checkbox')) {
+            updateBulkActions();
+        }
+    });
+    
+    function updateBulkActions() {
+        const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+        const bulkActions = document.getElementById('bulkActions');
+        const selectedCount = document.getElementById('selectedCount');
+        
+        if (bulkActions) {
+            if (checkboxes.length > 0) {
+                bulkActions.style.display = 'flex';
+                selectedCount.textContent = checkboxes.length;
+            } else {
+                bulkActions.style.display = 'none';
+            }
+        }
+    }
+    
+    async function previewFile(fileId) {
+        const modal = document.getElementById('previewModal');
+        const body = document.getElementById('previewBody');
+        
+        modal.classList.add('active');
+        body.innerHTML = '<div style="text-align: center;"><div class="spinner"></div><p>جاري التحميل...</p></div>';
+        
+        try {
+            const response = await fetch(`/api/file/${fileId}`, {
+                headers: { 'Authorization': 'Bearer ' + API_KEY }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const file = data.file;
+                let chunksHtml = '';
+                
+                file.chunks.slice(0, 5).forEach((chunk, idx) => {
+                    chunksHtml += `
+                        <div class="preview-chunk">
+                            <div class="preview-chunk-header">
+                                <span>قطعة ${idx + 1}</span>
+                                <span>${chunk.text.length} حرف</span>
+                            </div>
+                            <div class="preview-chunk-text">${escapeHtml(chunk.text.substring(0, 500))}${chunk.text.length > 500 ? '...' : ''}</div>
+                        </div>
+                    `;
+                });
+                
+                if (file.chunks.length > 5) {
+                    chunksHtml += `<p style="text-align: center; color: var(--text-secondary);">... و ${file.chunks.length - 5} قطعة أخرى</p>`;
+                }
+                
+                body.innerHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <p><strong>اسم الملف:</strong> ${file.filename}</p>
+                        <p><strong>عدد القطع:</strong> ${file.chunks_count}</p>
+                        <p><strong>اللغة:</strong> ${file.lang === 'ar' ? 'عربي' : file.lang === 'en' ? 'إنجليزي' : 'مختلط'}</p>
+                    </div>
+                    <h4 style="margin-bottom: 15px;">محتوى القطع:</h4>
+                    ${chunksHtml}
+                `;
+                
+                document.getElementById('previewTitle').textContent = file.filename;
+            } else {
+                body.innerHTML = `<p style="color: var(--error-color);">فشل تحميل الملف: ${data.error}</p>`;
+            }
+        } catch (error) {
+            body.innerHTML = `<p style="color: var(--error-color);">خطأ في الاتصال: ${error.message}</p>`;
+        }
+    }
+    
+    function closeModal() {
+        document.getElementById('previewModal').classList.remove('active');
+    }
+    
+    let fileToDelete = null;
+    
+    function deleteFile(fileId, filename) {
+        fileToDelete = fileId;
+        document.getElementById('deleteFileName').textContent = filename;
+        document.getElementById('deleteModal').classList.add('active');
+        
+        document.getElementById('confirmDeleteBtn').onclick = async function() {
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner"></span> جاري الحذف...';
+            
+            try {
+                const response = await fetch(`/api/file/${fileToDelete}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + API_KEY }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    closeDeleteModal();
+                    // Remove row from table
+                    const row = document.querySelector(`tr[data-file-id="${fileToDelete}"]`);
+                    if (row) {
+                        row.remove();
+                        // Update count
+                        const count = document.getElementById('filesCount');
+                        count.textContent = parseInt(count.textContent) - 1;
+                    }
+                } else {
+                    alert('فشل الحذف: ' + data.error);
+                }
+            } catch (error) {
+                alert('خطأ في الاتصال: ' + error.message);
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-trash"></i> حذف';
+            }
+        };
+    }
+    
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.remove('active');
+        fileToDelete = null;
+    }
+    
+    async function deleteSelected() {
+        const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+        if (checkboxes.length === 0) return;
+        
+        if (!confirm(`هل أنت متأكد من حذف ${checkboxes.length} ملفات؟`)) return;
+        
+        for (const cb of checkboxes) {
+            try {
+                await fetch(`/api/file/${cb.value}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + API_KEY }
+                });
+                
+                const row = document.querySelector(`tr[data-file-id="${cb.value}"]`);
+                if (row) row.remove();
+            } catch (error) {
+                console.error('Delete error:', error);
+            }
+        }
+        
+        // Update count
+        const count = document.getElementById('filesCount');
+        count.textContent = parseInt(count.textContent) - checkboxes.length;
+        
+        updateBulkActions();
+    }
+    
+    function exportFiles() {
+        const rows = document.querySelectorAll('#filesTable tbody tr');
+        let csv = 'اسم الملف,النوع,القطع,اللغة,تاريخ الرفع\n';
+        
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            const filename = row.dataset.filename;
+            const type = row.dataset.type;
+            const chunks = cells[3].textContent.trim();
+            const lang = row.dataset.lang;
+            const date = cells[5].textContent.trim();
+            
+            csv += `"${filename}","${type}","${chunks}","${lang}","${date}"\n`;
+        });
+        
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `files_export_${new Date().toISOString().slice(0,10)}.csv`;
+        link.click();
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Close modals on outside click
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('active');
+            }
+        });
+    });
+</script>
+{% endblock %}

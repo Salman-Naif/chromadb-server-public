@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}حالة النظام{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-server"></i>
+            حالة النظام
+        </h1>
+        <p class="page-subtitle">مراقبة حالة الخدمات والخوادم في الوقت الحقيقي</p>
+    </div>
+    <button class="btn btn-secondary" onclick="refreshStatus()">
+        <i class="fas fa-sync-alt"></i>
+        تحديث
+    </button>
+</div>
+
+<!-- Services Status -->
+<div class="stats-grid fade-in">
+    <div class="stat-card">
+        <div class="stat-icon {{ 'success' if status.chromadb.connected else 'error' }}">
+            <i class="fas fa-database"></i>
+        </div>
+        <div>
+            <div class="stat-value">
+                <span class="status-dot {{ 'online' if status.chromadb.connected else 'offline' }}"></span>
+                {{ 'متصل' if status.chromadb.connected else 'غير متصل' }}
+            </div>
+            <div class="stat-label">ChromaDB</div>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon {{ 'success' if status.embeddings.connected else 'error' }}">
+            <i class="fas fa-brain"></i>
+        </div>
+        <div>
+            <div class="stat-value">
+                <span class="status-dot {{ 'online' if status.embeddings.connected else 'offline' }}"></span>
+                {{ 'يعمل' if status.embeddings.connected else 'متوقف' }}
+            </div>
+            <div class="stat-label">Embeddings API</div>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon success">
+            <i class="fas fa-database"></i>
+        </div>
+        <div>
+            <div class="stat-value">
+                <span class="status-dot online"></span>
+                متصل
+            </div>
+            <div class="stat-label">قاعدة البيانات</div>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon success">
+            <i class="fas fa-server"></i>
+        </div>
+        <div>
+            <div class="stat-value">
+                <span class="status-dot online"></span>
+                يعمل
+            </div>
+            <div class="stat-label">الخادم</div>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+    <!-- System Info -->
+    <div class="card fade-in">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-info-circle"></i>
+                معلومات النظام
+            </h3>
+        </div>
+        
+        <div class="info-list">
+            <div class="info-item">
+                <span class="info-label">Python</span>
+                <span class="info-value">{{ status.system.python_version }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Flask</span>
+                <span class="info-value">{{ status.system.flask_version }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">ChromaDB</span>
+                <span class="info-value">{{ status.system.chromadb_version }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">البيئة</span>
+                <span class="info-value">
+                    <span class="badge badge-{{ 'error' if status.system.environment == 'production' else 'info' }}">
+                        {{ status.system.environment }}
+                    </span>
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">اسم الخادم</span>
+                <span class="info-value">{{ status.system.hostname }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">آخر إعادة تشغيل</span>
+                <span class="info-value">{{ status.system.start_time }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">وقت التشغيل</span>
+                <span class="info-value">{{ "%.1f"|format(status.system.uptime) }} ساعة</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Database Info -->
+    <div class="card fade-in">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-database"></i>
+                قاعدة البيانات المتجهية
+            </h3>
+        </div>
+        
+        <div class="info-list">
+            <div class="info-item">
+                <span class="info-label">اسم المجموعة</span>
+                <span class="info-value">{{ status.chromadb.collection_name }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">عدد المستندات</span>
+                <span class="info-value">{{ status.chromadb.document_count }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">الحالة</span>
+                <span class="info-value">
+                    <span class="badge badge-{{ 'success' if status.chromadb.connected else 'error' }}">
+                        {{ status.chromadb.status }}
+                    </span>
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Embedding Model</span>
+                <span class="info-value">{{ status.embeddings.model if status.embeddings else 'غير محدد' }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Activity Log -->
+<div class="card fade-in" style="margin-top: 20px;">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-history"></i>
+            سجل النشاط (آخر 50 حدث)
+        </h3>
+        <div>
+            <select id="activityFilter" class="form-control" style="width: auto;" onchange="filterActivity()">
+                <option value="">جميع الأحداث</option>
+                <option value="login">تسجيل دخول</option>
+                <option value="logout">تسجيل خروج</option>
+                <option value="upload">رفع ملفات</option>
+                <option value="delete">حذف</option>
+                <option value="add_user">إضافة مستخدم</option>
+                <option value="update_user">تعديل مستخدم</option>
+            </select>
+        </div>
+    </div>
+    
+    {% if activities %}
+    <div class="table-container">
+        <table id="activityTable">
+            <thead>
+                <tr>
+                    <th>الإجراء</th>
+                    <th>المستخدم</th>
+                    <th>التفاصيل</th>
+                    <th>IP</th>
+                    <th>التاريخ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for activity in activities %}
+                <tr data-action="{{ activity.action }}">
+                    <td>
+                        <span class="badge badge-{{ 'success' if activity.action in ['login', 'upload'] else 'info' if activity.action in ['add_user', 'update_user'] else 'error' if activity.action in ['delete', 'delete_user'] else 'warning' }}">
+                            {{ activity.action }}
+                        </span>
+                    </td>
+                    <td>{{ activity.user.full_name if activity.user else 'نظام' }}</td>
+                    <td>{{ activity.details[:50] if activity.details else '-' }}{% if activity.details and activity.details|length > 50 %}...{% endif %}</td>
+                    <td><code>{{ activity.ip_address or '-' }}</code></td>
+                    <td>{{ activity.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+        <i class="fas fa-history" style="font-size: 3em; margin-bottom: 15px; opacity: 0.5;"></i>
+        <p>لا توجد أحداث مسجلة</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .info-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+    }
+    
+    .info-label {
+        color: var(--text-secondary);
+    }
+    
+    .info-value {
+        font-weight: 500;
+        font-family: monospace;
+    }
+    
+    .stat-icon.error {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+    
+    code {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+    
+    .status-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-left: 8px;
+    }
+    
+    .status-dot.online {
+        background: var(--success-color);
+        box-shadow: 0 0 10px var(--success-color);
+    }
+    
+    .status-dot.offline {
+        background: var(--error-color);
+        box-shadow: 0 0 10px var(--error-color);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function refreshStatus() {
+        location.reload();
+    }
+    
+    function filterActivity() {
+        const filter = document.getElementById('activityFilter').value;
+        const rows = document.querySelectorAll('#activityTable tbody tr');
+        
+        rows.forEach(row => {
+            if (!filter || row.dataset.action === filter) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+</script>
+{% endblock %}

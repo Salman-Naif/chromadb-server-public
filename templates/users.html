@@ -1,0 +1,548 @@
+{% extends "base.html" %}
+
+{% block title %}إدارة المستخدمين{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-users"></i>
+            إدارة المستخدمين
+        </h1>
+        <p class="page-subtitle">عرض وإدارة مستخدمي النظام</p>
+    </div>
+    {% if current_user.role == 'system_manager' %}
+    <button class="btn btn-primary" onclick="openAddModal()">
+        <i class="fas fa-user-plus"></i>
+        إضافة مستخدم
+    </button>
+    {% endif %}
+</div>
+
+<!-- Stats -->
+<div class="stats-grid fade-in">
+    <div class="stat-card">
+        <div class="stat-icon primary">
+            <i class="fas fa-users"></i>
+        </div>
+        <div>
+            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">إجمالي المستخدمين</div>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon success">
+            <i class="fas fa-user-check"></i>
+        </div>
+        <div>
+            <div class="stat-value">{{ stats.active }}</div>
+            <div class="stat-label">مستخدمون نشطون</div>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon info">
+            <i class="fas fa-user-cog"></i>
+        </div>
+        <div>
+            <div class="stat-value">{{ stats.admins }}</div>
+            <div class="stat-label">مديرون</div>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon warning">
+            <i class="fas fa-user-tie"></i>
+        </div>
+        <div>
+            <div class="stat-value">{{ stats.managers }}</div>
+            <div class="stat-label">مديرو النظام</div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filter -->
+<div class="card fade-in">
+    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 250px;">
+            <input type="text" id="searchInput" class="form-control" placeholder="البحث بالاسم أو البريد..." onkeyup="filterUsers()">
+        </div>
+        <div>
+            <select id="roleFilter" class="form-control" onchange="filterUsers()">
+                <option value="">جميع الأدوار</option>
+                <option value="staff">موظف</option>
+                <option value="admin">مدير</option>
+                <option value="system_manager">مدير النظام</option>
+            </select>
+        </div>
+        <div>
+            <select id="statusFilter" class="form-control" onchange="filterUsers()">
+                <option value="">جميع الحالات</option>
+                <option value="active">نشط</option>
+                <option value="inactive">معطل</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="card fade-in">
+    <div class="table-container">
+        <table id="usersTable">
+            <thead>
+                <tr>
+                    <th>المستخدم</th>
+                    <th>البريد الإلكتروني</th>
+                    <th>الدور</th>
+                    <th>الحالة</th>
+                    <th>آخر دخول</th>
+                    <th>تاريخ الإنشاء</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr data-user-id="{{ user.id }}" 
+                    data-name="{{ user.full_name.lower() }}" 
+                    data-email="{{ user.email.lower() }}"
+                    data-role="{{ user.role }}"
+                    data-status="{{ 'active' if user.is_active else 'inactive' }}">
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div class="user-avatar-sm">
+                                {{ user.first_name[0] if user.first_name else 'U' }}
+                            </div>
+                            <span class="user-name">{{ user.full_name }}</span>
+                        </div>
+                    </td>
+                    <td>{{ user.email }}</td>
+                    <td>
+                        <span class="badge badge-{{ 'error' if user.role == 'system_manager' else 'info' if user.role == 'admin' else 'secondary' }}">
+                            {{ user.role_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ 'success' if user.is_active else 'error' }}">
+                            {{ 'نشط' if user.is_active else 'معطل' }}
+                        </span>
+                    </td>
+                    <td>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'لم يسجل دخول' }}</td>
+                    <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <div class="actions-btns">
+                            <button class="btn btn-sm btn-secondary" onclick="viewUser({{ user.id }})" title="عرض">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            {% if current_user.role == 'system_manager' %}
+                            <button class="btn btn-sm btn-secondary" onclick="editUser({{ user.id }})" title="تعديل">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            {% if user.id != current_user.id %}
+                            <button class="btn btn-sm btn-{{ 'danger' if user.is_active else 'success' }}" 
+                                    onclick="toggleUserStatus({{ user.id }}, {{ 'true' if user.is_active else 'false' }})" 
+                                    title="{{ 'تعطيل' if user.is_active else 'تفعيل' }}">
+                                <i class="fas fa-{{ 'ban' if user.is_active else 'check' }}"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteUser({{ user.id }}, '{{ user.email }}')" title="حذف">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal" id="addModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-plus"></i> إضافة مستخدم جديد</h3>
+            <button class="modal-close" onclick="closeAddModal()">&times;</button>
+        </div>
+        <form id="addUserForm" action="{{ url_for('add_user') }}" method="POST">
+            <div class="form-group">
+                <label class="form-label">البريد الإلكتروني *</label>
+                <input type="email" name="email" class="form-control" required placeholder="user@example.com">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">الاسم الأول</label>
+                    <input type="text" name="first_name" class="form-control" placeholder="أحمد">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">الاسم الأخير</label>
+                    <input type="text" name="last_name" class="form-control" placeholder="محمد">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">كلمة المرور * (8 أحرف على الأقل)</label>
+                <input type="password" name="password" class="form-control" required minlength="8" placeholder="••••••••">
+            </div>
+            <div class="form-group">
+                <label class="form-label">الدور</label>
+                <select name="role" class="form-control">
+                    <option value="staff">موظف</option>
+                    <option value="admin">مدير</option>
+                    <option value="system_manager">مدير النظام</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAddModal()">إلغاء</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                    إضافة
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal" id="editModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-edit"></i> تعديل المستخدم</h3>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form id="editUserForm" action="{{ url_for('update_user') }}" method="POST">
+            <input type="hidden" name="user_id" id="editUserId">
+            <div class="form-group">
+                <label class="form-label">البريد الإلكتروني</label>
+                <input type="email" id="editEmail" class="form-control" disabled>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">الاسم الأول</label>
+                    <input type="text" name="first_name" id="editFirstName" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">الاسم الأخير</label>
+                    <input type="text" name="last_name" id="editLastName" class="form-control">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">كلمة مرور جديدة (اتركها فارغة لعدم التغيير)</label>
+                <input type="password" name="new_password" class="form-control" minlength="8" placeholder="••••••••">
+            </div>
+            <div class="form-group">
+                <label class="form-label">الدور</label>
+                <select name="role" id="editRole" class="form-control">
+                    <option value="staff">موظف</option>
+                    <option value="admin">مدير</option>
+                    <option value="system_manager">مدير النظام</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">إلغاء</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    حفظ التغييرات
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- View User Modal -->
+<div class="modal" id="viewModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-user"></i> تفاصيل المستخدم</h3>
+            <button class="modal-close" onclick="closeViewModal()">&times;</button>
+        </div>
+        <div id="viewModalBody"></div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeViewModal()">إغلاق</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-avatar-sm {
+        width: 35px;
+        height: 35px;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.9em;
+    }
+    
+    .actions-btns {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+    
+    .badge.badge-secondary {
+        background: rgba(148, 163, 184, 0.2);
+        color: #94a3b8;
+    }
+    
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal.active {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: var(--card-bg);
+        border-radius: 15px;
+        width: 90%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        border: 1px solid var(--border-color);
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 25px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .modal-header h3 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+    }
+    
+    .modal-header h3 i {
+        color: var(--accent-color);
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 1.5em;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+    }
+    
+    .modal-close:hover {
+        color: var(--error-color);
+    }
+    
+    .modal-content form {
+        padding: 25px;
+    }
+    
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 20px 25px;
+        border-top: 1px solid var(--border-color);
+        background: rgba(0, 0, 0, 0.2);
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+    
+    .user-detail-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 25px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .user-detail-item:last-child {
+        border-bottom: none;
+    }
+    
+    .user-detail-label {
+        color: var(--text-secondary);
+    }
+    
+    .user-detail-value {
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function filterUsers() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const roleFilter = document.getElementById('roleFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+        
+        const rows = document.querySelectorAll('#usersTable tbody tr');
+        
+        rows.forEach(row => {
+            const name = row.dataset.name;
+            const email = row.dataset.email;
+            const role = row.dataset.role;
+            const status = row.dataset.status;
+            
+            const matchSearch = name.includes(search) || email.includes(search);
+            const matchRole = !roleFilter || role === roleFilter;
+            const matchStatus = !statusFilter || status === statusFilter;
+            
+            row.style.display = (matchSearch && matchRole && matchStatus) ? '' : 'none';
+        });
+    }
+    
+    function openAddModal() {
+        document.getElementById('addModal').classList.add('active');
+    }
+    
+    function closeAddModal() {
+        document.getElementById('addModal').classList.remove('active');
+        document.getElementById('addUserForm').reset();
+    }
+    
+    function editUser(userId) {
+        const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+        const nameEl = row.querySelector('.user-name');
+        const nameParts = nameEl.textContent.trim().split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        const email = row.cells[1].textContent;
+        const role = row.dataset.role;
+        
+        document.getElementById('editUserId').value = userId;
+        document.getElementById('editFirstName').value = firstName;
+        document.getElementById('editLastName').value = lastName;
+        document.getElementById('editEmail').value = email;
+        document.getElementById('editRole').value = role;
+        
+        document.getElementById('editModal').classList.add('active');
+    }
+    
+    function closeEditModal() {
+        document.getElementById('editModal').classList.remove('active');
+    }
+    
+    function viewUser(userId) {
+        const row = document.querySelector(`tr[data-user-id="${userId}"]`);
+        const name = row.querySelector('.user-name').textContent;
+        const email = row.cells[1].textContent;
+        const role = row.cells[2].textContent.trim();
+        const status = row.cells[3].textContent.trim();
+        const lastLogin = row.cells[4].textContent;
+        const createdAt = row.cells[5].textContent;
+        
+        const body = document.getElementById('viewModalBody');
+        body.innerHTML = `
+            <div class="user-detail-item">
+                <span class="user-detail-label">الاسم</span>
+                <span class="user-detail-value">${name}</span>
+            </div>
+            <div class="user-detail-item">
+                <span class="user-detail-label">البريد الإلكتروني</span>
+                <span class="user-detail-value">${email}</span>
+            </div>
+            <div class="user-detail-item">
+                <span class="user-detail-label">الدور</span>
+                <span class="user-detail-value">${role}</span>
+            </div>
+            <div class="user-detail-item">
+                <span class="user-detail-label">الحالة</span>
+                <span class="user-detail-value">${status}</span>
+            </div>
+            <div class="user-detail-item">
+                <span class="user-detail-label">آخر دخول</span>
+                <span class="user-detail-value">${lastLogin}</span>
+            </div>
+            <div class="user-detail-item">
+                <span class="user-detail-label">تاريخ الإنشاء</span>
+                <span class="user-detail-value">${createdAt}</span>
+            </div>
+        `;
+        
+        document.getElementById('viewModal').classList.add('active');
+    }
+    
+    function closeViewModal() {
+        document.getElementById('viewModal').classList.remove('active');
+    }
+    
+    async function toggleUserStatus(userId, isActive) {
+        const action = isActive ? 'تعطيل' : 'تفعيل';
+        if (!confirm(`هل أنت متأكد من ${action} هذا المستخدم؟`)) return;
+        
+        try {
+            const response = await fetch(`/api/user/${userId}/toggle-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('فشل في تغيير حالة المستخدم: ' + data.error);
+            }
+        } catch (error) {
+            alert('خطأ في الاتصال: ' + error.message);
+        }
+    }
+    
+    async function deleteUser(userId, email) {
+        if (!confirm(`هل أنت متأكد من حذف المستخدم "${email}"؟\n\nهذا الإجراء لا يمكن التراجع عنه!`)) return;
+        
+        try {
+            const response = await fetch(`/api/user/${userId}/delete`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('فشل في حذف المستخدم: ' + data.error);
+            }
+        } catch (error) {
+            alert('خطأ في الاتصال: ' + error.message);
+        }
+    }
+    
+    // Close modals on outside click
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('active');
+            }
+        });
+    });
+</script>
+{% endblock %}

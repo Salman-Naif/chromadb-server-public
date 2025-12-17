@@ -1,0 +1,32 @@
+# ============================================
+# ChromaDB Knowledge Server - Docker Compose
+# ============================================
+
+version: '3.8'
+
+services:
+  chromadb-server:
+    build: .
+    container_name: chromadb-knowledge-server
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - CHROMADB_PATH=/app/data/chromadb
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+    volumes:
+      - chromadb_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  chromadb_data:
+    driver: local

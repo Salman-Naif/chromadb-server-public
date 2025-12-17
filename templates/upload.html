@@ -1,0 +1,564 @@
+{% extends "base.html" %}
+
+{% block title %}رفع الملفات{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-cloud-upload-alt"></i>
+            رفع الملفات
+        </h1>
+        <p class="page-subtitle">رفع ومعالجة الملفات لإضافتها إلى قاعدة المعرفة</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+    <!-- File Upload Card -->
+    <div class="card fade-in">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-file-upload"></i>
+                رفع ملف
+            </h3>
+        </div>
+        
+        <div class="info-box">
+            <h4><i class="fas fa-info-circle"></i> الملفات المدعومة:</h4>
+            <ul>
+                <li><strong>PDF:</strong> نصي، جداول، صور ممسوحة (OCR)</li>
+                <li><strong>Word (DOCX):</strong> نص + جداول + ملاحظات عن الصور</li>
+                <li><strong>نص خام (TXT):</strong> دعم كامل للعربية والإنجليزية</li>
+            </ul>
+            <p><strong>⚠️ الحد الأقصى:</strong> 50 MB للملف الواحد</p>
+        </div>
+        
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" name="file" accept=".pdf,.docx,.doc,.txt" required style="display: none;">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="upload-text">اضغط لاختيار ملف أو اسحبه هنا</div>
+                <div class="file-name" id="fileName"></div>
+            </div>
+            
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">0%</div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-full" id="submitBtn">
+                <i class="fas fa-upload"></i>
+                رفع ومعالجة الملف
+            </button>
+        </form>
+        
+        <div id="result"></div>
+    </div>
+    
+    <!-- Google Docs Card -->
+    <div class="card fade-in">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fab fa-google-drive"></i>
+                Google Docs
+            </h3>
+        </div>
+        
+        <div class="info-box">
+            <h4><i class="fas fa-info-circle"></i> كيفية رفع Google Docs:</h4>
+            <ol>
+                <li>افتح المستند في Google Docs</li>
+                <li>اضغط "مشاركة" ← اجعله "يمكن لأي شخص الوصول"</li>
+                <li>انسخ الرابط والصقه أدناه</li>
+            </ol>
+            <p><strong>الروابط المدعومة:</strong></p>
+            <ul>
+                <li>docs.google.com/document/d/...</li>
+                <li>drive.google.com/file/d/...</li>
+            </ul>
+        </div>
+        
+        <form id="gdocsForm">
+            <div class="form-group">
+                <label class="form-label">رابط Google Doc</label>
+                <input 
+                    type="url" 
+                    id="gdocsUrl" 
+                    name="url" 
+                    class="form-control" 
+                    placeholder="https://docs.google.com/document/d/..."
+                    required
+                >
+            </div>
+            
+            <div class="progress-container" id="gdocsProgressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="gdocsProgressFill"></div>
+                </div>
+                <div class="progress-text" id="gdocsProgressText">0%</div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-full" id="gdocsSubmitBtn">
+                <i class="fas fa-download"></i>
+                تحميل ومعالجة Google Doc
+            </button>
+        </form>
+        
+        <div id="gdocsResult"></div>
+    </div>
+</div>
+
+<!-- Upload Tips -->
+<div class="card fade-in" style="margin-top: 20px;">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-lightbulb"></i>
+            نصائح للرفع الأمثل
+        </h3>
+    </div>
+    
+    <div class="tips-grid">
+        <div class="tip-item">
+            <div class="tip-icon">
+                <i class="fas fa-file-pdf"></i>
+            </div>
+            <div>
+                <strong>ملفات PDF</strong>
+                <p>يفضل أن يكون النص قابلاً للنسخ. الملفات الممسوحة تحتاج وقتاً أطول للمعالجة.</p>
+            </div>
+        </div>
+        
+        <div class="tip-item">
+            <div class="tip-icon">
+                <i class="fas fa-file-word"></i>
+            </div>
+            <div>
+                <strong>ملفات Word</strong>
+                <p>الجداول يتم استخراجها تلقائياً. الصور لا يتم استخراج محتواها.</p>
+            </div>
+        </div>
+        
+        <div class="tip-item">
+            <div class="tip-icon">
+                <i class="fas fa-language"></i>
+            </div>
+            <div>
+                <strong>اللغة</strong>
+                <p>النظام يدعم العربية والإنجليزية ويكشف اللغة تلقائياً.</p>
+            </div>
+        </div>
+        
+        <div class="tip-item">
+            <div class="tip-icon">
+                <i class="fas fa-puzzle-piece"></i>
+            </div>
+            <div>
+                <strong>التقسيم</strong>
+                <p>يتم تقسيم النص إلى قطع 900 حرف مع تداخل 90 حرف للحفاظ على السياق.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .info-box {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .info-box h4 {
+        color: #3b82f6;
+        margin-bottom: 10px;
+        font-size: 0.95em;
+    }
+    
+    .info-box ul, .info-box ol {
+        margin: 10px 0;
+        padding-right: 20px;
+        color: var(--text-secondary);
+        font-size: 0.9em;
+    }
+    
+    .info-box li {
+        margin-bottom: 5px;
+    }
+    
+    .info-box p {
+        margin: 10px 0 0;
+        font-size: 0.9em;
+        color: var(--text-secondary);
+    }
+    
+    .upload-area {
+        border: 2px dashed var(--border-color);
+        border-radius: 15px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+    }
+    
+    .upload-area:hover {
+        border-color: var(--primary-color);
+        background: rgba(26, 95, 122, 0.1);
+    }
+    
+    .upload-area.dragover {
+        border-color: var(--success-color);
+        background: rgba(34, 197, 94, 0.1);
+    }
+    
+    .upload-icon {
+        font-size: 3em;
+        color: var(--primary-color);
+        margin-bottom: 15px;
+    }
+    
+    .upload-text {
+        color: var(--text-secondary);
+        font-size: 1.1em;
+    }
+    
+    .file-name {
+        margin-top: 15px;
+        color: var(--accent-color);
+        font-weight: 600;
+    }
+    
+    .progress-container {
+        display: none;
+        margin-bottom: 20px;
+    }
+    
+    .progress-bar {
+        height: 10px;
+        background: var(--border-color);
+        border-radius: 5px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        width: 0;
+        transition: width 0.3s ease;
+    }
+    
+    .progress-text {
+        text-align: center;
+        margin-top: 8px;
+        color: var(--text-secondary);
+        font-size: 0.9em;
+    }
+    
+    .btn-full {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .result-box {
+        margin-top: 20px;
+        padding: 20px;
+        border-radius: 10px;
+        animation: slideIn 0.3s ease;
+    }
+    
+    .result-box.success {
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .result-box.error {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .result-box h4 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .result-box.success h4 {
+        color: var(--success-color);
+    }
+    
+    .result-box.error h4 {
+        color: var(--error-color);
+    }
+    
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .tips-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+    
+    .tip-item {
+        display: flex;
+        gap: 15px;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+    }
+    
+    .tip-icon {
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    
+    .tip-item strong {
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    .tip-item p {
+        font-size: 0.85em;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const API_KEY = '{{ config.CHROMADB_API_KEY }}';
+    
+    // File Upload
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    
+    uploadArea.addEventListener('click', () => fileInput.click());
+    
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            fileName.textContent = '📄 ' + e.target.files[0].name;
+        }
+    });
+    
+    // Drag and drop
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        fileInput.files = e.dataTransfer.files;
+        if (fileInput.files.length > 0) {
+            fileName.textContent = '📄 ' + fileInput.files[0].name;
+        }
+    });
+    
+    // File upload form
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (!fileInput.files.length) {
+            showResult('result', 'error', 'الرجاء اختيار ملف أولاً');
+            return;
+        }
+        
+        await uploadFile(fileInput.files[0]);
+    });
+    
+    async function uploadFile(file) {
+        const submitBtn = document.getElementById('submitBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner"></span> جاري المعالجة...';
+        progressContainer.style.display = 'block';
+        
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            if (progress < 90) {
+                progress += Math.random() * 10;
+                progressFill.style.width = progress + '%';
+                progressText.textContent = Math.round(progress) + '%';
+            }
+        }, 500);
+        
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            clearInterval(progressInterval);
+            progressFill.style.width = '100%';
+            progressText.textContent = '100%';
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                // Server returned HTML (probably login page or error page)
+                if (response.status === 401 || response.status === 302) {
+                    showResult('result', 'error', `
+                        <h4><i class="fas fa-times-circle"></i> انتهت الجلسة</h4>
+                        <p>يرجى <a href="/login" style="color: var(--accent-color);">تسجيل الدخول</a> مرة أخرى</p>
+                    `);
+                } else {
+                    showResult('result', 'error', `
+                        <h4><i class="fas fa-times-circle"></i> خطأ في الخادم</h4>
+                        <p>حدث خطأ غير متوقع (${response.status}). يرجى المحاولة مرة أخرى.</p>
+                    `);
+                }
+                return;
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showResult('result', 'success', `
+                    <h4><i class="fas fa-check-circle"></i> تم الرفع بنجاح!</h4>
+                    <p><strong>الملف:</strong> ${data.filename}</p>
+                    <p><strong>عدد القطع:</strong> ${data.chunks_count}</p>
+                    <p>${data.message}</p>
+                `);
+                fileInput.value = '';
+                fileName.textContent = '';
+            } else {
+                showResult('result', 'error', `
+                    <h4><i class="fas fa-times-circle"></i> فشل الرفع</h4>
+                    <p>${data.error}</p>
+                `);
+            }
+            
+            setTimeout(() => progressContainer.style.display = 'none', 2000);
+        } catch (error) {
+            clearInterval(progressInterval);
+            progressContainer.style.display = 'none';
+            showResult('result', 'error', `
+                <h4><i class="fas fa-times-circle"></i> خطأ في الاتصال</h4>
+                <p>${error.message}</p>
+            `);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-upload"></i> رفع ومعالجة الملف';
+        }
+    }
+    
+    // Google Docs form
+    document.getElementById('gdocsForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const url = document.getElementById('gdocsUrl').value.trim();
+        if (!url) {
+            showResult('gdocsResult', 'error', 'الرجاء إدخال رابط Google Doc');
+            return;
+        }
+        
+        await uploadGoogleDoc(url);
+    });
+    
+    async function uploadGoogleDoc(url) {
+        const submitBtn = document.getElementById('gdocsSubmitBtn');
+        const progressContainer = document.getElementById('gdocsProgressContainer');
+        const progressFill = document.getElementById('gdocsProgressFill');
+        const progressText = document.getElementById('gdocsProgressText');
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner"></span> جاري التحميل...';
+        progressContainer.style.display = 'block';
+        progressFill.style.width = '50%';
+        progressText.textContent = '50%';
+        
+        try {
+            const response = await fetch('/api/upload/google-docs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url: url })
+            });
+            
+            progressFill.style.width = '100%';
+            progressText.textContent = '100%';
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showResult('gdocsResult', 'success', `
+                    <h4><i class="fas fa-check-circle"></i> تم رفع Google Doc بنجاح!</h4>
+                    <p><strong>المستند:</strong> ${data.filename}</p>
+                    <p><strong>عدد القطع:</strong> ${data.chunks_count}</p>
+                `);
+                document.getElementById('gdocsUrl').value = '';
+            } else {
+                showResult('gdocsResult', 'error', `
+                    <h4><i class="fas fa-times-circle"></i> فشل التحميل</h4>
+                    <p>${data.error}</p>
+                    <p style="margin-top: 10px; font-size: 0.9em;">
+                        💡 <strong>نصيحة:</strong> تأكد من أن المستند متاح للجميع (مشاركة عامة)
+                    </p>
+                `);
+            }
+            
+            setTimeout(() => progressContainer.style.display = 'none', 2000);
+        } catch (error) {
+            progressContainer.style.display = 'none';
+            showResult('gdocsResult', 'error', `
+                <h4><i class="fas fa-times-circle"></i> خطأ في الاتصال</h4>
+                <p>${error.message}</p>
+            `);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-download"></i> تحميل ومعالجة Google Doc';
+        }
+    }
+    
+    function showResult(elementId, type, message) {
+        const result = document.getElementById(elementId);
+        result.innerHTML = `<div class="result-box ${type}">${message}</div>`;
+    }
+</script>
+<style>
+    .spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 8px;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
